@@ -1,0 +1,16 @@
+.playerButtons {
+    width: 100vw;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 5px;
+}
+
+.playButton {
+    margin: 5px;
+    padding: 5px;
+    background-color: lightgray;
+    cursor: pointer;
+    border-radius: 5px;
+}
