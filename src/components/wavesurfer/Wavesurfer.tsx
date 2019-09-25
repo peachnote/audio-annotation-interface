@@ -17,8 +17,8 @@ interface WavesurferProps {
 interface WavesurferState {
     playbackPos: number;
     playbackStarted: boolean;
-    pieceDuration: string;
-    currentTime: string;
+    pieceDuration: number; // in seconds
+    currentTime: number;   // in seconds
     regions: Array<Region>;
 }
 
@@ -26,7 +26,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     private wavesurfer: WaveSurfer | undefined;
     private playbackPosInterval: any;
-    private mouseDownPos: number = 0;
+    private mouseDownPos: number = -1;
     private drawingInterval: boolean = false;
 
 
@@ -35,8 +35,8 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
         this.state = {
             playbackPos: 0,
             playbackStarted: false,
-            pieceDuration: "",
-            currentTime: "",
+            pieceDuration: 0,
+            currentTime: 0,
             regions: []
         }
 
@@ -65,7 +65,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
         this.wavesurfer.on("ready", async () => {
             this.wavesurfer && this.setState({
-                pieceDuration: formatPlaybackTime(Math.ceil(this.wavesurfer.getDuration() * 1000))
+                pieceDuration: this.wavesurfer.getDuration()
             });
             try {
                 let regions = await fetchRegions(this.props.taskId);
@@ -80,22 +80,38 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                         end: region.end_time,
                         annotation: region.annotation
                     };
-
-                    let currentRegionOptions = {
-                        start: newRegion.start,
-                        end: newRegion.end,
-                        color: ColorMap.get(newRegion.annotation)
-                    };
-                    this.wavesurfer && this.wavesurfer.addRegion(currentRegionOptions);
                     regionArr.push(newRegion);
                 }
                 this.setState({
                     regions: regionArr
                 });
+
+                this.renderRegions();
+
             } catch (e) {
                 console.error(e);
             }
         });
+
+        this.wavesurfer.on("finish", () => {
+            clearInterval(this.playbackPosInterval);
+            this.setState({
+                playbackStarted: false
+            })
+        })
+    }
+
+    private renderRegions = () => {
+        for (let region of this.state.regions) {
+            let currentRegionOptions = {
+                start: region.start,
+                end: region.end,
+                color: ColorMap.get(region.annotation)
+            };
+            this.wavesurfer && this.wavesurfer.addRegion(currentRegionOptions);
+        }
+
+        // TODO: UPDATE REGION LABELS/TOOLTIPS
     }
 
     private togglePlayback = () => {
@@ -110,27 +126,31 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                 this.wavesurfer.play();
                 this.setState({
                     playbackStarted: true
-                })
+                });
                 this.playbackPosInterval = setInterval(this.updatePlaybackPosition.bind(this), 500);
             }
         }
     }
 
     private updatePlaybackPosition = () => {
+
         if (this.wavesurfer) {
-            let currentPos = this.wavesurfer.getCurrentTime();
             this.setState({
-                currentTime: formatPlaybackTime(Math.ceil(currentPos * 1000))
+                currentTime: this.wavesurfer.getCurrentTime()
             })
         }
 
-    }
+    };
 
     private onMouseDown = (ev: any) => {
-
-        this.mouseDownPos = ev.clientX;
-        this.drawingInterval = true;
-    }
+        if (this.wavesurfer) {
+            this.mouseDownPos = ev.clientX;
+            // console.log(ev.clientX, this.wavesurfer && this.wavesurfer.drawer.width);
+            let currentPos = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.wavesurfer.getDuration();
+            this.wavesurfer && console.log("Mouse down at " + currentPos);
+            this.drawingInterval = true;
+        }
+    };
 
     private onMouseMove = (ev: any) => {
         // console.log(ev.clientX);
@@ -138,16 +158,17 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
         if (this.drawingInterval) {
 
         }
-    }
+    };
 
     private onMouseUp = (ev: any) => {
-
-        // we are in the same position where the mouse was put down, d.h. clicked
-        if (this.mouseDownPos === ev.clientX) {
-            this.drawingInterval = false;
-            if (this.wavesurfer) {
+        this.drawingInterval = false;
+        if (this.wavesurfer) {
+            // we are in the same position where the mouse was put down, d.h. clicked
+            if (this.mouseDownPos === ev.clientX) {
+                console.log(this.wavesurfer.drawer.getWidth());
                 let currentPos = this.mouseDownPos / this.wavesurfer.drawer.getWidth();
-                this.wavesurfer.seekTo(currentPos);
+                console.log(currentPos);
+                // this.wavesurfer.seekTo(currentPos);
 
                 if (!this.wavesurfer.isPlaying()) {
                     clearInterval(this.playbackPosInterval);
@@ -157,12 +178,24 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
                 this.setState({
                     playbackStarted: true,
-                    currentTime: formatPlaybackTime(Math.ceil(currentPos * this.wavesurfer.getDuration() * 1000))
+                    currentTime: currentPos * this.wavesurfer.getDuration()
                 })
-            }
 
-        } else {
-            // mouse position changed, that means that we have to end a region
+
+            } else {
+                // mouse position changed, that means that we have to end a region
+
+                 let startTime = (this.mouseDownPos+this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration
+                 let endTime = (ev.clientX+this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration;
+                let newRegionOptions = {
+                      start: startTime,
+                      end: endTime,
+                      color: "rgba(0,0,255,0.5)"
+                  };
+                  this.wavesurfer.addRegion(newRegionOptions);
+                  console.log(this.wavesurfer.regions.list);
+                  this.mouseDownPos = -1;
+            }
         }
     }
 
@@ -180,7 +213,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                      onClick={this.togglePlayback.bind(this)}>
                     {!this.state.playbackStarted ? "play" : "pause"}
                 </div>
-                <div>{this.state.currentTime + "/" + this.state.pieceDuration}</div>
+                <div>{formatPlaybackTime(Math.ceil(this.state.currentTime * 1000)) + "/" + formatPlaybackTime(Math.ceil(this.state.pieceDuration * 1000))}</div>
             </div>
         </>);
     }
