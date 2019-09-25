@@ -143,13 +143,14 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
     };
 
     private onMouseDown = (ev: any) => {
-        if (this.wavesurfer) {
+        if (this.wavesurfer && (ev.clientY<this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
             this.mouseDownPos = ev.clientX;
             // console.log(ev.clientX, this.wavesurfer && this.wavesurfer.drawer.width);
             let currentPos = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.wavesurfer.getDuration();
             this.wavesurfer && console.log("Mouse down at " + currentPos);
             this.drawingInterval = true;
         }
+
     };
 
     private onMouseMove = (ev: any) => {
@@ -162,7 +163,8 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     private onMouseUp = (ev: any) => {
         this.drawingInterval = false;
-        if (this.wavesurfer) {
+        // checking wavesurfer to satisfy js, checking if we didn't click scrollbar
+        if (this.wavesurfer && (ev.clientY<this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
             // we are in the same position where the mouse was put down, d.h. clicked
             if (this.mouseDownPos === ev.clientX) {
                 console.log(this.wavesurfer.drawer.getWidth());
