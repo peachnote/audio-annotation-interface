@@ -14,3 +14,22 @@
     cursor: pointer;
     border-radius: 5px;
 }
+
+.annotationButtons {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    flex-flow: wrap;
+}
+
+.annotationButton {
+    width: 25vw;
+    border-radius: 5px;
+    height: 8vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-transform: uppercase;
+    cursor: pointer;
+}

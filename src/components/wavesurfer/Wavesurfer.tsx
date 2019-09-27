@@ -6,12 +6,17 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.regions';
 import styles from "./Wavesurfer.module.css";
 import {formatPlaybackTime} from "../../util/TimeUtils";
 import {fetchRegions} from "../../util/FetchUtils";
-import {Region} from "../../types/Region";
 import ColorMap from "../../util/ColorMap";
+import {annotationTypes} from "../../util/AnnotationType";
 
 interface WavesurferProps {
     songUrl: string;
     taskId: string;
+}
+
+class AnnotatedRegion {
+    public region: any;
+    public annotation: string="";
 }
 
 interface WavesurferState {
@@ -19,16 +24,15 @@ interface WavesurferState {
     playbackStarted: boolean;
     pieceDuration: number; // in seconds
     currentTime: number;   // in seconds
-    regions: Array<Region>;
+    regions: any;
+    currentRegion: any;
 }
 
 export class Wavesurfer extends React.Component <WavesurferProps, WavesurferState> {
 
     private wavesurfer: WaveSurfer | undefined;
     private playbackPosInterval: any;
-    private mouseDownPos: number = -1;
-    private drawingInterval: boolean = false;
-
+    
 
     constructor(props: WavesurferProps) {
         super(props);
@@ -37,7 +41,8 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             playbackStarted: false,
             pieceDuration: 0,
             currentTime: 0,
-            regions: []
+            regions: {},
+            currentRegion: null
         }
 
 
@@ -56,7 +61,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                     container: '#spectrogram'
                 }),*/
                 RegionsPlugin.create({
-                    enableDragSelection: true
+                    dragSelection: true
                 })
             ]
         });
@@ -68,26 +73,26 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                 pieceDuration: this.wavesurfer.getDuration()
             });
             try {
+
                 let regions = await fetchRegions(this.props.taskId);
                 console.log(regions);
 
-                let regionArr = [];
                 for (let i = 0; i < regions.length; i++) {
                     let region = regions[i];
-                    let newRegion: Region = {
-                        id: i,
+                    let newRegion = {
                         start: region.start_time,
                         end: region.end_time,
-                        annotation: region.annotation
+                        color: ColorMap.get(region.annotation)
                     };
-                    regionArr.push(newRegion);
+                    if (this.wavesurfer) {
+                        let added = this.wavesurfer.addRegion(newRegion);
+                        let addedId: string = added.id;
+                        let annotatedRegion=new AnnotatedRegion();
+                        annotatedRegion.region = added;
+                        annotatedRegion.annotation=region.annotation;
+                        this.state.regions[addedId] = annotatedRegion;
+                    }
                 }
-                this.setState({
-                    regions: regionArr
-                });
-
-                this.renderRegions();
-
             } catch (e) {
                 console.error(e);
             }
@@ -98,20 +103,31 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             this.setState({
                 playbackStarted: false
             })
+        });
+
+        this.wavesurfer.on("region-created", (region) => {
+            if (!this.state.regions[region.id]) {
+                console.log(this.state.regions);
+                
+                let regionMap = this.state.regions;
+
+                regionMap[region.id] = {
+                    region: region,
+                    annotation: ""
+                };
+
+                this.setState({
+                    regions: regionMap,
+                    currentRegion: region
+                });
+            }
+            console.log(this.state.regions);
+        });
+
+        this.wavesurfer.on("region-updated", (region) => {
+            this.state.regions[region.id].region = region;
+            console.log(this.state.regions);
         })
-    }
-
-    private renderRegions = () => {
-        for (let region of this.state.regions) {
-            let currentRegionOptions = {
-                start: region.start,
-                end: region.end,
-                color: ColorMap.get(region.annotation)
-            };
-            this.wavesurfer && this.wavesurfer.addRegion(currentRegionOptions);
-        }
-
-        // TODO: UPDATE REGION LABELS/TOOLTIPS
     }
 
     private togglePlayback = () => {
@@ -142,8 +158,55 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     };
 
+    public render() {
+        return (<>
+            <div id="spectrogram">
+            </div>
+            <div id="waveform"
+                // onMouseDown={this.onMouseDown.bind(this)}
+                // onMouseUp={this.onMouseUp.bind(this)}
+                // onMouseMove={this.onMouseMove.bind(this)}
+            ></div>
+
+            <div className={styles.playerButtons}>
+                <div className={styles.playButton}
+                     onClick={this.togglePlayback.bind(this)}>
+                    {!this.state.playbackStarted ? "play" : "pause"}
+                </div>
+                <div>{formatPlaybackTime(Math.ceil(this.state.currentTime * 1000)) + "/" + formatPlaybackTime(Math.ceil(this.state.pieceDuration * 1000))}</div>
+            </div>
+
+            <div className={styles.annotationButtons}>
+                {annotationTypes.map((annotationType) => {
+                    return (<div key={annotationType} className={styles.annotationButton} style={{
+                        backgroundColor: ColorMap.get(annotationType)
+                    }} onClick={() => {
+                        if (this.wavesurfer && this.state.currentRegion) {
+                            this.state.currentRegion.update({
+                                color: ColorMap.get(annotationType)
+                            });
+
+                            let currentRegion = this.state.regions[this.state.currentRegion.id];
+                            if (currentRegion) {
+                                console.log(currentRegion);
+                                currentRegion.annotation = annotationType;
+                                this.state.regions[currentRegion.region.id]=currentRegion;
+                            }
+
+                            console.log(this.state.regions);
+                        }
+
+                    }}>{annotationType}</div>);
+                })}
+            </div>
+        </>);
+    }
+}
+
+
+/*
     private onMouseDown = (ev: any) => {
-        if (this.wavesurfer && (ev.clientY<this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
+        if (this.wavesurfer && (ev.clientY < this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
             this.mouseDownPos = ev.clientX;
             // console.log(ev.clientX, this.wavesurfer && this.wavesurfer.drawer.width);
             let currentPos = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.wavesurfer.getDuration();
@@ -163,14 +226,12 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     private onMouseUp = (ev: any) => {
         this.drawingInterval = false;
+
         // checking wavesurfer to satisfy js, checking if we didn't click scrollbar
-        if (this.wavesurfer && (ev.clientY<this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
+        if (this.wavesurfer && (ev.clientY < this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
+
             // we are in the same position where the mouse was put down, d.h. clicked
             if (this.mouseDownPos === ev.clientX) {
-                console.log(this.wavesurfer.drawer.getWidth());
-                let currentPos = this.mouseDownPos / this.wavesurfer.drawer.getWidth();
-                console.log(currentPos);
-                // this.wavesurfer.seekTo(currentPos);
 
                 if (!this.wavesurfer.isPlaying()) {
                     clearInterval(this.playbackPosInterval);
@@ -179,44 +240,39 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                 }
 
                 this.setState({
-                    playbackStarted: true,
-                    currentTime: currentPos * this.wavesurfer.getDuration()
+                    playbackStarted: true
                 })
 
 
             } else {
                 // mouse position changed, that means that we have to end a region
+                /*
+                                let startTime = (this.mouseDownPos + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration
+                                let endTime = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration;
+                                let newRegionOptions = {
+                                    start: startTime,
+                                    end: endTime,
+                                    color: "rgba(0,0,255,0.5)"
+                                };
+                                this.wavesurfer.addRegion(newRegionOptions);
 
-                 let startTime = (this.mouseDownPos+this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration
-                 let endTime = (ev.clientX+this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration;
-                let newRegionOptions = {
-                      start: startTime,
-                      end: endTime,
-                      color: "rgba(0,0,255,0.5)"
-                  };
-                  this.wavesurfer.addRegion(newRegionOptions);
-                  console.log(this.wavesurfer.regions.list);
-                  this.mouseDownPos = -1;
+                                let newRegion = {
+                                    start: startTime,
+                                    end: endTime,
+                                    id: this.state.regions.length,
+                                    annotation: ""
+                                };
+
+                                let newRegions = Array.from(this.state.regions);
+
+                                newRegions.push(newRegion);
+                                this.setState({
+                                    regions: newRegions,
+                                    currentRegion: newRegion
+                                })
+
+                                this.mouseDownPos = -1;
             }
         }
     }
-
-    public render() {
-        return (<>
-            <div id="spectrogram">
-            </div>
-            <div id="waveform"
-                 onMouseDown={this.onMouseDown.bind(this)}
-                 onMouseUp={this.onMouseUp.bind(this)}
-                 onMouseMove={this.onMouseMove.bind(this)}></div>
-
-            <div className={styles.playerButtons}>
-                <div className={styles.playButton}
-                     onClick={this.togglePlayback.bind(this)}>
-                    {!this.state.playbackStarted ? "play" : "pause"}
-                </div>
-                <div>{formatPlaybackTime(Math.ceil(this.state.currentTime * 1000)) + "/" + formatPlaybackTime(Math.ceil(this.state.pieceDuration * 1000))}</div>
-            </div>
-        </>);
-    }
-}
+*/

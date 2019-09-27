@@ -7,7 +7,7 @@ export function fetchRegions(taskId: string): Promise<any> {
                 });
             })
             .catch(error => {
-                error(error);
+                reject(error);
             });
     });
 
