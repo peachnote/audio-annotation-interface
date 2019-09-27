@@ -5,7 +5,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.regions';
 // @ts-ignore
 import styles from "./Wavesurfer.module.css";
 import {formatPlaybackTime} from "../../util/TimeUtils";
-import {fetchRegions} from "../../util/FetchUtils";
+import {fetchRegions, submitAnnotations} from "../../util/FetchUtils";
 import ColorMap from "../../util/ColorMap";
 import {annotationTypes} from "../../util/AnnotationType";
 
@@ -98,6 +98,16 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             }
         });
 
+        this.wavesurfer.on("seek", () => {
+            if (this.wavesurfer && !this.wavesurfer.isPlaying()) {
+                this.wavesurfer.play();
+                this.setState({
+                    playbackStarted: true
+                });
+                this.playbackPosInterval = setInterval(this.updatePlaybackPosition.bind(this), 500);
+            }
+        })
+
         this.wavesurfer.on("finish", () => {
             clearInterval(this.playbackPosInterval);
             this.setState({
@@ -116,7 +126,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
                         for (let innerRegionId in this.wavesurfer.regions.list) {
                             if (innerRegionId === regionId) {
-                                console.log("Removing region "+innerRegionId, this.wavesurfer.regions.list[innerRegionId]);
+                                console.log("Removing region " + innerRegionId, this.wavesurfer.regions.list[innerRegionId]);
                                 this.wavesurfer.regions.list[innerRegionId].remove();
                             }
                         }
@@ -187,11 +197,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
         return (<>
             <div id="spectrogram">
             </div>
-            <div id="waveform"
-                // onMouseDown={this.onMouseDown.bind(this)}
-                // onMouseUp={this.onMouseUp.bind(this)}
-                // onMouseMove={this.onMouseMove.bind(this)}
-            ></div>
+            <div id="waveform"></div>
 
             <div className={styles.playerButtons}>
                 <div className={styles.playButton}
@@ -224,80 +230,50 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                     }}>{annotationType}</div>);
                 })}
             </div>
+
+            <div className={styles.persistenceButtons}>
+                <div className={styles.persistButton}
+                     onClick={async () => {
+                         try {
+                             let grades = [
+                                 {parameter: "smoothness", value: Math.floor(Math.random() * 100)},
+                                 {parameter: "rhythm", value: Math.floor(Math.random() * 100)},
+                                 {parameter: "pitch", value: Math.floor(Math.random() * 100)},
+                                 {parameter: "hands coordination", value: Math.floor(Math.random() * 100)},
+                                 {parameter: "expression", value: Math.floor(Math.random() * 100)}
+                             ];
+
+                             let annotations: Array<any> = [];
+
+                             let emptyRegion = false;
+                             for (let region in this.state.regions) {
+                                 if (this.state.regions[region].annotation === "") {
+                                     alert("Empty annotation!")
+                                     return;
+                                 }
+
+                                 let annotationObj = {
+                                     annotation: this.state.regions[region].annotation,
+                                     start: this.state.regions[region].region.start,
+                                     end: this.state.regions[region].region.end
+                                 };
+
+                                 annotations.push(annotationObj);
+                             }
+
+                             console.log(annotations);
+
+                             let result = await submitAnnotations(this.props.taskId,
+
+                                 annotations, grades);
+                             alert("annotations submitted");
+                         } catch (e) {
+                             alert("error submitting annotations");
+                             console.log(e);
+                         }
+                     }}>save annotations
+                </div>
+            </div>
         </>);
     }
 }
-
-
-/*
-    private onMouseDown = (ev: any) => {
-        if (this.wavesurfer && (ev.clientY < this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
-            this.mouseDownPos = ev.clientX;
-            // console.log(ev.clientX, this.wavesurfer && this.wavesurfer.drawer.width);
-            let currentPos = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.wavesurfer.getDuration();
-            this.wavesurfer && console.log("Mouse down at " + currentPos);
-            this.drawingInterval = true;
-        }
-
-    };
-
-    private onMouseMove = (ev: any) => {
-        // console.log(ev.clientX);
-
-        if (this.drawingInterval) {
-
-        }
-    };
-
-    private onMouseUp = (ev: any) => {
-        this.drawingInterval = false;
-
-        // checking wavesurfer to satisfy js, checking if we didn't click scrollbar
-        if (this.wavesurfer && (ev.clientY < this.wavesurfer.drawer.canvases[0].wave.offsetHeight)) {
-
-            // we are in the same position where the mouse was put down, d.h. clicked
-            if (this.mouseDownPos === ev.clientX) {
-
-                if (!this.wavesurfer.isPlaying()) {
-                    clearInterval(this.playbackPosInterval);
-                    this.wavesurfer.play();
-                    this.playbackPosInterval = setInterval(this.updatePlaybackPosition.bind(this), 500);
-                }
-
-                this.setState({
-                    playbackStarted: true
-                })
-
-
-            } else {
-                // mouse position changed, that means that we have to end a region
-                /*
-                                let startTime = (this.mouseDownPos + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration
-                                let endTime = (ev.clientX + this.wavesurfer.drawer.getScrollX()) / this.wavesurfer.drawer.width * this.state.pieceDuration;
-                                let newRegionOptions = {
-                                    start: startTime,
-                                    end: endTime,
-                                    color: "rgba(0,0,255,0.5)"
-                                };
-                                this.wavesurfer.addRegion(newRegionOptions);
-
-                                let newRegion = {
-                                    start: startTime,
-                                    end: endTime,
-                                    id: this.state.regions.length,
-                                    annotation: ""
-                                };
-
-                                let newRegions = Array.from(this.state.regions);
-
-                                newRegions.push(newRegion);
-                                this.setState({
-                                    regions: newRegions,
-                                    currentRegion: newRegion
-                                })
-
-                                this.mouseDownPos = -1;
-            }
-        }
-    }
-*/
