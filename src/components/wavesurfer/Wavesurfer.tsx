@@ -202,7 +202,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             <div className={styles.playerButtons}>
                 <div className={styles.playButton}
                      onClick={this.togglePlayback.bind(this)}>
-                    {!this.state.playbackStarted ? "play" : "pause"}
+                    {!this.state.playbackStarted ? <p>&#9654;</p> : <p>&#9632;</p>}
                 </div>
                 <div>{formatPlaybackTime(Math.ceil(this.state.currentTime * 1000)) + "/" + formatPlaybackTime(Math.ceil(this.state.pieceDuration * 1000))}</div>
             </div>

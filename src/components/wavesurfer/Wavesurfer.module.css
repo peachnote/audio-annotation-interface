@@ -1,18 +1,16 @@
 .playerButtons {
-    width: 100vw;
+   position: absolute;
+    left: 5px;
+    top: 5px;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    padding: 5px;
 }
 
 .playButton {
-    margin: 5px;
-    padding: 5px;
-    background-color: lightgray;
     cursor: pointer;
-    border-radius: 5px;
+    margin-right: 5px;
 }
 
 .annotationButtons {
@@ -21,10 +19,11 @@
     justify-content: space-around;
     align-items: center;
     flex-flow: wrap;
+    padding: 5px;
 }
 
 .annotationButton {
-    width: 25vw;
+    width: 15vw;
     border-radius: 5px;
     height: 8vh;
     display: flex;
