@@ -16,7 +16,7 @@ interface WavesurferProps {
 
 class AnnotatedRegion {
     public region: any;
-    public annotation: string="";
+    public annotation: string = "";
 }
 
 interface WavesurferState {
@@ -32,7 +32,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     private wavesurfer: WaveSurfer | undefined;
     private playbackPosInterval: any;
-    
+
 
     constructor(props: WavesurferProps) {
         super(props);
@@ -87,9 +87,9 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                     if (this.wavesurfer) {
                         let added = this.wavesurfer.addRegion(newRegion);
                         let addedId: string = added.id;
-                        let annotatedRegion=new AnnotatedRegion();
+                        let annotatedRegion = new AnnotatedRegion();
                         annotatedRegion.region = added;
-                        annotatedRegion.annotation=region.annotation;
+                        annotatedRegion.annotation = region.annotation;
                         this.state.regions[addedId] = annotatedRegion;
                     }
                 }
@@ -106,28 +106,53 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
         });
 
         this.wavesurfer.on("region-created", (region) => {
-            if (!this.state.regions[region.id]) {
-                console.log(this.state.regions);
-                
-                let regionMap = this.state.regions;
 
-                regionMap[region.id] = {
-                    region: region,
-                    annotation: ""
-                };
+            if (this.wavesurfer) {
 
-                this.setState({
-                    regions: regionMap,
-                    currentRegion: region
-                });
+                for (let regionId in this.state.regions) {
+                    let cRegion = this.state.regions[regionId];
+                    if (cRegion.annotation === "") {
+                        console.log("Region with empty annotation", regionId);
+
+                        for (let innerRegionId in this.wavesurfer.regions.list) {
+                            if (innerRegionId === regionId) {
+                                console.log("Removing region "+innerRegionId, this.wavesurfer.regions.list[innerRegionId]);
+                                this.wavesurfer.regions.list[innerRegionId].remove();
+                            }
+                        }
+
+                        delete this.state.regions[regionId];
+
+                    }
+                }
+
+                if (!this.state.regions[region.id]) {
+
+                    let regionMap = this.state.regions;
+
+                    regionMap[region.id] = {
+                        region: region,
+                        annotation: ""
+                    };
+
+                    this.setState({
+                        regions: regionMap,
+                        currentRegion: region
+                    });
+                }
+                console.log(this.state.regions, this.wavesurfer.regions.list);
             }
-            console.log(this.state.regions);
         });
 
         this.wavesurfer.on("region-updated", (region) => {
             this.state.regions[region.id].region = region;
-            console.log(this.state.regions);
-        })
+        });
+
+        this.wavesurfer.on("region-dblclick", (region) => {
+            this.setState({
+                currentRegion: region
+            })
+        });
     }
 
     private togglePlayback = () => {
@@ -190,7 +215,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                             if (currentRegion) {
                                 console.log(currentRegion);
                                 currentRegion.annotation = annotationType;
-                                this.state.regions[currentRegion.region.id]=currentRegion;
+                                this.state.regions[currentRegion.region.id] = currentRegion;
                             }
 
                             console.log(this.state.regions);
