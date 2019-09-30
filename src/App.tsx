@@ -1,6 +1,11 @@
 import React from 'react';
 import './App.css';
 import {Wavesurfer} from "./components/wavesurfer/Wavesurfer";
+import Amplify from 'aws-amplify';
+// import awsconfig from './aws-exports';
+// import { withAuthenticator } from 'aws-amplify-react';
+
+// Amplify.configure(awsconfig);
 
 const App: React.FC = () => {
   return (

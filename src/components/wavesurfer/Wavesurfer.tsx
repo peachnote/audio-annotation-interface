@@ -3,6 +3,7 @@ import WaveSurfer from 'wavesurfer.js';
 // @ts-ignore
 import RegionsPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.regions';
 // @ts-ignore
+import SpectrogramPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.spectrogram';
 import styles from "./Wavesurfer.module.css";
 import {formatPlaybackTime} from "../../util/TimeUtils";
 import {fetchRegions, submitAnnotations} from "../../util/FetchUtils";
@@ -57,8 +58,10 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             height: window.innerHeight / 2,
             barHeight: window.innerHeight / 100,
             plugins: [
-                /* SpectrogramPlugin.create({
-                    container: '#spectrogram'
+                /*SpectrogramPlugin.create({
+                    container: "#wave-spectrogram",
+                    windowFunc: 'bartlett',
+                    pixelRatio: 1
                 }),*/
                 RegionsPlugin.create({
                     dragSelection: true
@@ -195,9 +198,10 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
     public render() {
         return (<>
-            <div id="spectrogram">
+
+            <div id="waveform" className={styles.waveform}></div>
+            <div id="wave-spectrogram" className={styles.spectrogram}>
             </div>
-            <div id="waveform"></div>
 
             <div className={styles.playerButtons}>
                 <div className={styles.playButton}
