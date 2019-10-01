@@ -3,7 +3,6 @@ import WaveSurfer from 'wavesurfer.js';
 // @ts-ignore
 import RegionsPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.regions';
 // @ts-ignore
-import SpectrogramPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.spectrogram';
 import styles from "./Wavesurfer.module.css";
 import {formatPlaybackTime} from "../../util/TimeUtils";
 import {fetchRegions, submitAnnotations} from "../../util/FetchUtils";
@@ -27,12 +26,14 @@ interface WavesurferState {
     currentTime: number;   // in seconds
     regions: any;
     currentRegion: any;
+    removeButtons: Array<JSX.Element>;
 }
 
 export class Wavesurfer extends React.Component <WavesurferProps, WavesurferState> {
 
     private wavesurfer: WaveSurfer | undefined;
     private playbackPosInterval: any;
+    private regionFetchedFromServer: boolean = false;
 
 
     constructor(props: WavesurferProps) {
@@ -43,7 +44,8 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             pieceDuration: 0,
             currentTime: 0,
             regions: {},
-            currentRegion: null
+            currentRegion: null,
+            removeButtons: []
         }
 
 
@@ -88,12 +90,18 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                         color: ColorMap.get(region.annotation)
                     };
                     if (this.wavesurfer) {
+                        this.regionFetchedFromServer = true;
                         let added = this.wavesurfer.addRegion(newRegion);
                         let addedId: string = added.id;
                         let annotatedRegion = new AnnotatedRegion();
                         annotatedRegion.region = added;
                         annotatedRegion.annotation = region.annotation;
-                        this.state.regions[addedId] = annotatedRegion;
+                        console.log("Setting region" + addedId, annotatedRegion);
+                        let updatedRegions = this.state.regions;
+                        updatedRegions[addedId] = annotatedRegion;
+                        this.setState({
+                            regions: updatedRegions
+                        });
                     }
                 }
             } catch (e) {
@@ -102,14 +110,12 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
         });
 
         this.wavesurfer.on("seek", () => {
-            if (this.wavesurfer && !this.wavesurfer.isPlaying()) {
-                this.wavesurfer.play();
+            if (this.wavesurfer) {
                 this.setState({
-                    playbackStarted: true
-                });
-                this.playbackPosInterval = setInterval(this.updatePlaybackPosition.bind(this), 500);
+                    currentTime: this.wavesurfer.getCurrentTime()
+                })
             }
-        })
+        });
 
         this.wavesurfer.on("finish", () => {
             clearInterval(this.playbackPosInterval);
@@ -122,6 +128,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
             if (this.wavesurfer) {
 
+                // remove the previous region that wasn't annotated upon creation of new one
                 for (let regionId in this.state.regions) {
                     let cRegion = this.state.regions[regionId];
                     if (cRegion.annotation === "") {
@@ -139,21 +146,34 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                     }
                 }
 
+
+                // if this is a region that was just created manually or received from server,
+                // we need to put it into the regions maps
                 if (!this.state.regions[region.id]) {
 
                     let regionMap = this.state.regions;
-
-                    regionMap[region.id] = {
+                    let newRegion = {
                         region: region,
                         annotation: ""
                     };
+                    console.log("created new region" + region.id + " with annotation", newRegion.annotation);
 
-                    this.setState({
-                        regions: regionMap,
-                        currentRegion: region
-                    });
+                    regionMap[region.id] = newRegion;
+
+
+                    if (this.regionFetchedFromServer) {
+                        this.regionFetchedFromServer = false;
+                        this.setState({
+                            regions: regionMap,
+                        });
+                    } else {
+                        this.setState({
+                            regions: regionMap,
+                            currentRegion: region
+                        });
+                    }
                 }
-                console.log(this.state.regions, this.wavesurfer.regions.list);
+                console.log(this.state.currentRegion);
             }
         });
 
@@ -161,7 +181,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             this.state.regions[region.id].region = region;
         });
 
-        this.wavesurfer.on("region-dblclick", (region) => {
+        this.wavesurfer.on("region-click", (region) => {
             this.setState({
                 currentRegion: region
             })
@@ -197,11 +217,18 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
     };
 
     public render() {
+        // console.log(this.state.currentRegion && this.state.currentRegion.start, this.state.currentRegion && this.state.currentRegion.end);
+
         return (<>
 
-            <div id="waveform" className={styles.waveform}></div>
-            <div id="wave-spectrogram" className={styles.spectrogram}>
+            <div id="waveform" className={styles.waveform}>
             </div>
+
+            {this.state.currentRegion &&
+            <div className={styles.currentRegion}>
+                Selected
+                region: {formatPlaybackTime(Math.ceil(this.state.currentRegion.start * 1000))}-{formatPlaybackTime(Math.ceil(this.state.currentRegion.end * 1000))}
+            </div>}
 
             <div className={styles.playerButtons}>
                 <div className={styles.playButton}
@@ -211,11 +238,17 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                 <div>{formatPlaybackTime(Math.ceil(this.state.currentTime * 1000)) + "/" + formatPlaybackTime(Math.ceil(this.state.pieceDuration * 1000))}</div>
             </div>
 
+
             <div className={styles.annotationButtons}>
                 {annotationTypes.map((annotationType) => {
-                    return (<div key={annotationType} className={styles.annotationButton} style={{
-                        backgroundColor: ColorMap.get(annotationType)
-                    }} onClick={() => {
+                    return (<div
+                        key={annotationType}
+                        className={styles.annotationButton}
+                        style={{
+                            backgroundColor: ColorMap.get(annotationType),
+                            opacity: this.state.currentRegion ? 1 : 0.5,
+                            cursor: this.state.currentRegion ? "pointer" : "unset"
+                        }} onClick={() => {
                         if (this.wavesurfer && this.state.currentRegion) {
                             this.state.currentRegion.update({
                                 color: ColorMap.get(annotationType)
@@ -223,12 +256,8 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
 
                             let currentRegion = this.state.regions[this.state.currentRegion.id];
                             if (currentRegion) {
-                                console.log(currentRegion);
                                 currentRegion.annotation = annotationType;
-                                this.state.regions[currentRegion.region.id] = currentRegion;
                             }
-
-                            console.log(this.state.regions);
                         }
 
                     }}>{annotationType}</div>);

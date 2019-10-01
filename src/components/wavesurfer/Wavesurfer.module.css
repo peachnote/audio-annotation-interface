@@ -11,6 +11,7 @@
 .playButton {
     cursor: pointer;
     margin-right: 5px;
+    z-index: 9;
 }
 
 .annotationButtons {
@@ -39,30 +40,32 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    padding: 15px;
-    padding-top: 30px;
+    padding: 30px 15px 15px;
 }
 
 .persistButton {
     background-color: lightblue;
     text-transform: uppercase;
-    font-size: 2em;
+    font-size: 1.2em;
     border-radius: 5px;
     padding: 10px;
     cursor:pointer;
 }
 
-/* .waveform {
-    display: none;
+.removeButtons {
+    overflow: visible;
+    width: 100%;
+    height: 10px;
+    z-index: 8;
 }
 
-.spectrogram {
-    position: initial;
-    top: 0;
-    left: 0;
+.removeButtonsWrapper {
+    position: relative;
+    height: 10px;
 }
 
-.spectrogram canvas {
-    position:unset;
+.removeButton {
+    position: absolute;
+    cursor: pointer;
+    z-index: 10;
 }
-*/
