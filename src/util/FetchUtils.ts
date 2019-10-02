@@ -1,8 +1,8 @@
 const apiBase = "http://pn-rect.dyn-vpn.de:3002";
 
-export function fetchRegions(taskId: string): Promise<any> {
+export function fetchRegions(taskId: string, userId: string): Promise<any> {
     let pr: Promise<any> = new Promise((resolve, reject) => {
-        fetch(apiBase + "/annotation?taskId=" + taskId)
+        fetch(apiBase + "/annotation?taskId=" + taskId+"&userId="+userId)
             .then(data => {
                 data.json().then((result: any) => {
                     resolve(result);
@@ -16,7 +16,10 @@ export function fetchRegions(taskId: string): Promise<any> {
     return pr;
 }
 
-export function submitAnnotations(taskId: string, annotations: Array<any>, grades: Array<any>) {
+export function submitAnnotations(taskId: string,
+                                  annotations: Array<any>,
+                                  grades: Array<any>,
+                                  userId: string) {
     let pr: Promise<any> = new Promise((resolve, reject) => {
         fetch(apiBase + "/evaluation",
             {
@@ -28,7 +31,7 @@ export function submitAnnotations(taskId: string, annotations: Array<any>, grade
                 body: JSON.stringify(
                     {
                         taskId: taskId,
-                        userId: 3,
+                        userId: userId,
                         grades: grades,
                         annotations: annotations
                     })

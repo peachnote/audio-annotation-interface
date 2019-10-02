@@ -30,10 +30,10 @@ class Annotator extends React.Component <any, AnnotatorState> {
         Auth.currentAuthenticatedUser()
             .then(async (user) => {
                 userName = user.attributes.email;
-                let userId
+                // let userId
                 let resp = await fetchUserId(identityId, userName);
                 resp.json().then((res: any) => {
-                    userId = res;
+                    let userId = res.id;
                     console.log("Received user id for cognito id", identityId, userId);
                     this.setState({
                         userId: userId
@@ -41,15 +41,14 @@ class Annotator extends React.Component <any, AnnotatorState> {
                 });
 
             });
-
-
-    }
+   }
 
     public render() {
         return (<div className={styles.annotator}>
             <Wavesurfer
                 taskId={this.state.currentTaskId}
-                songUrl={this.state.currentTaskUrl}/>
+                songUrl={this.state.currentTaskUrl}
+                userId={this.state.userId}/>
         </div>);
     }
 }
