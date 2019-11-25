@@ -24,6 +24,8 @@ class Annotator extends React.Component <any, AnnotatorState> {
         }
     }
 
+    // amazon auth support, uncomment if needed
+/*
     async componentDidMount() {
         const identityId = await (await Auth.currentCredentials()).identityId;
         let userName = "";
@@ -42,7 +44,7 @@ class Annotator extends React.Component <any, AnnotatorState> {
 
             });
    }
-
+*/
     public render() {
         return (<div className={styles.annotator}>
             <Wavesurfer
@@ -53,4 +55,5 @@ class Annotator extends React.Component <any, AnnotatorState> {
     }
 }
 
-export default withAuthenticator(Annotator);
+export default Annotator;
+// export default withAuthenticator(Annotator); // simple amazon auth
