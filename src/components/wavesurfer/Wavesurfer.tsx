@@ -243,8 +243,7 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
                          this.setState({
                              currentRegion: null
                          });
-                     }}>remove
-                </div>
+                     }}>&#215;</div>
             </div>}
 
             <div className={styles.playerButtons}>
