@@ -59,11 +59,6 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
             height: window.innerHeight / 2,
             barHeight: window.innerHeight / 100,
             plugins: [
-                /*SpectrogramPlugin.create({
-                    container: "#wave-spectrogram",
-                    windowFunc: 'bartlett',
-                    pixelRatio: 1
-                }),*/
                 RegionsPlugin.create({
                     dragSelection: true
                 })
@@ -173,8 +168,6 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
     private async fetchRegionsForUser (userId: string) {
         try {
             let regions = await fetchRegions(this.props.taskId, userId);
-            console.log(regions);
-
             for (let i = 0; i < regions.length; i++) {
                 let region = regions[i];
                 let newRegion = {
@@ -232,8 +225,6 @@ export class Wavesurfer extends React.Component <WavesurferProps, WavesurferStat
     };
 
     public render() {
-        // console.log(this.state.currentRegion && this.state.currentRegion.start, this.state.currentRegion && this.state.currentRegion.end);
-
         return (<>
 
             <div id="waveform" className={styles.waveform}>
